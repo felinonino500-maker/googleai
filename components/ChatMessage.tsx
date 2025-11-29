@@ -1,15 +1,65 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Message, Role, MessageType } from '../types';
+import { base64ToFile } from '../utils/fileHelpers';
 
 interface ChatMessageProps {
   message: Message;
+  onFeedback: (messageId: string, feedback: 'like' | 'dislike' | null) => void;
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFeedback }) => {
   const isUser = message.role === Role.USER;
+  const [isCopied, setIsCopied] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const handleShare = async () => {
+    setIsSharing(true);
+    try {
+      if (message.type === MessageType.TEXT) {
+        const shareData = {
+          title: 'Gemini Chat Message',
+          text: message.content,
+        };
+
+        if (navigator.share && navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+        } else {
+          await navigator.clipboard.writeText(message.content);
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        }
+      } else if (message.type === MessageType.IMAGE_GENERATION_RESULT) {
+        const file = base64ToFile(message.content, `gemini-gen-${Date.now()}.png`, 'image/png');
+        const shareData = {
+          files: [file],
+          title: 'Gemini Generated Image',
+        };
+
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+           await navigator.share(shareData);
+        } else {
+           // Fallback to download
+           const link = document.createElement('a');
+           link.href = URL.createObjectURL(file);
+           link.download = `gemini-gen-${Date.now()}.png`;
+           document.body.appendChild(link);
+           link.click();
+           document.body.removeChild(link);
+           // Show feedback like "Downloaded"
+           setIsCopied(true); // Reusing isCopied state to show "Saved" feedback
+           setTimeout(() => setIsCopied(false), 2000);
+        }
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   return (
-    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-6`}>
+    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-6 group`}>
       <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
         
         {/* Header (Role Name) */}
@@ -19,7 +69,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
 
         {/* Bubble */}
         <div 
-          className={`px-4 py-3 rounded-2xl shadow-md ${
+          className={`px-4 py-3 rounded-2xl shadow-md relative ${
             isUser 
               ? 'bg-indigo-600 text-white rounded-tr-none' 
               : 'bg-slate-700 text-slate-100 rounded-tl-none border border-slate-600'
@@ -82,10 +132,52 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             </div>
           )}
         </div>
+
+        {/* Action Buttons (Like, Dislike, Share) - Only for Model messages or non-error messages */}
+        {!isUser && message.type !== MessageType.ERROR && (
+          <div className="flex items-center gap-2 mt-2 px-1">
+             <button
+               onClick={() => onFeedback(message.id, message.feedback === 'like' ? null : 'like')}
+               className={`p-1.5 rounded-full transition-colors ${message.feedback === 'like' ? 'text-green-400 bg-green-400/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}
+               title="Suka"
+             >
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill={message.feedback === 'like' ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+               </svg>
+             </button>
+             <button
+               onClick={() => onFeedback(message.id, message.feedback === 'dislike' ? null : 'dislike')}
+               className={`p-1.5 rounded-full transition-colors ${message.feedback === 'dislike' ? 'text-red-400 bg-red-400/10' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}
+               title="Tidak Suka"
+             >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill={message.feedback === 'dislike' ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                </svg>
+             </button>
+             <div className="h-4 w-px bg-slate-700 mx-1"></div>
+             <button
+               onClick={handleShare}
+               className={`p-1.5 rounded-full transition-colors ${isCopied ? 'text-green-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}
+               title="Bagikan"
+               disabled={isSharing}
+             >
+               {isCopied ? (
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                 </svg>
+               ) : (
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                 </svg>
+               )}
+             </button>
+          </div>
+        )}
         
         {/* Timestamp */}
-        <span className="text-[10px] text-slate-500 mt-1 px-1">
+        <span className="text-[10px] text-slate-500 mt-1 px-1 flex items-center gap-1">
           {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {isCopied && <span className="text-green-500 ml-2">• Tersimpan</span>}
         </span>
       </div>
     </div>

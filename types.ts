@@ -1,3 +1,4 @@
+
 export enum Role {
   USER = 'user',
   MODEL = 'model'
@@ -23,6 +24,7 @@ export interface Message {
   content: string; // Text content or Base64 string for generated images
   attachments?: Attachment[]; // User uploaded files/images
   timestamp: number;
+  feedback?: 'like' | 'dislike' | null;
 }
 
 export enum AppMode {

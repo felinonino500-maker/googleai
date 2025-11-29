@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Attachment, Message, Role, MessageType, AppMode } from './types';
 import { sendChatMessage, generateImage } from './services/geminiService';
@@ -78,6 +79,12 @@ const App: React.FC = () => {
 
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleFeedback = (messageId: string, feedback: 'like' | 'dislike' | null) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, feedback } : msg
+    ));
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -193,7 +200,11 @@ const App: React.FC = () => {
       {/* Messages Area */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2">
         {messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} />
+          <ChatMessage 
+            key={msg.id} 
+            message={msg} 
+            onFeedback={handleFeedback}
+          />
         ))}
         {isLoading && (
             <div className="flex justify-start w-full mb-6 animate-pulse">
