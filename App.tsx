@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Attachment, Message, Role, MessageType, AppMode } from './types';
 import { sendChatMessage, generateImage } from './services/geminiService';
@@ -87,15 +86,17 @@ const App: React.FC = () => {
     ));
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent, manualPrompt?: string) => {
     e?.preventDefault();
-    if ((!input.trim() && attachments.length === 0) || isLoading) return;
+    const promptToUse = manualPrompt || input;
+    
+    if ((!promptToUse.trim() && attachments.length === 0) || isLoading) return;
 
     const currentUserMsg: Message = {
       id: Date.now().toString(),
       role: Role.USER,
       type: MessageType.TEXT,
-      content: input,
+      content: promptToUse,
       attachments: [...attachments],
       timestamp: Date.now()
     };
@@ -153,6 +154,42 @@ const App: React.FC = () => {
       handleSubmit();
     }
   };
+
+  // --- Suggestions Logic ---
+  const getSuggestions = () => {
+    if (isLoading) return [];
+    
+    if (mode === AppMode.GENERATE_IMAGE) {
+        return [
+            "Kucing Cyberpunk",
+            "Pemandangan Gunung Fuji",
+            "Logo Startup Kopi",
+            "Mobil Sport Futuristik"
+        ];
+    }
+    
+    if (attachments.length > 0) {
+        return [
+            "Jelaskan gambar ini",
+            "Ekstrak teks dari gambar",
+            "Buat caption Instagram",
+            "Identifikasi objek utama"
+        ];
+    }
+
+    if (messages.length < 3) {
+         return [
+            "Apa yang bisa kamu lakukan?",
+            "Buatkan puisi pendek",
+            "Tips belajar programming",
+            "Resep nasi goreng spesial"
+        ];
+    }
+    
+    return [];
+  };
+
+  const suggestions = getSuggestions();
 
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-slate-100 overflow-hidden font-inter">
@@ -222,6 +259,21 @@ const App: React.FC = () => {
       <footer className="bg-slate-800 border-t border-slate-700 p-3 sm:p-4 z-20">
         <div className="max-w-4xl mx-auto flex flex-col gap-3">
             
+            {/* Suggestions Chips */}
+            {suggestions.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {suggestions.map((suggestion, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleSubmit(undefined, suggestion)}
+                            className="whitespace-nowrap px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 text-slate-300 text-xs sm:text-sm rounded-full border border-slate-600 transition-colors"
+                        >
+                            {suggestion}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Attachments Preview */}
             {attachments.length > 0 && (
                 <div className="flex gap-3 overflow-x-auto py-2">

@@ -39,15 +39,22 @@ export const sendChatMessage = async (
       parts.push({ text: prompt });
     }
 
-    // We use generateContent for single turn or managed history
-    // To support history, we would normally use ai.chats.create, 
-    // but for simple "add to list" logic with mixed modalities, simple generation is often safer to stateless errors.
-    // However, to make it a real chat, let's construct the full prompt history manually or use chat if no attachments.
-    
-    // Simplification for stability: We will send the current payload. 
-    // If you need full conversational memory with images, Gemini 1.5/2.5 handles it, 
-    // but let's stick to the immediate context + system instruction for now to keep it robust.
-    
+    // System instruction to define persona and context
+    const systemInstruction = `
+      Anda adalah Gemini Omni, asisten AI cerdas dalam aplikasi React yang memiliki kemampuan Multimodal.
+      
+      Konteks Aplikasi:
+      1. Mode Chat: Anda bisa menjawab pertanyaan teks dan menganalisis gambar/file yang diunggah user.
+      2. Mode Buat Gambar (Image Generation): Aplikasi ini memiliki tombol toggle khusus di bagian atas untuk berpindah ke mode 'Buat Gambar'.
+      
+      Instruksi:
+      - Jawablah dengan sopan, ringkas, dan informatif.
+      - Gunakan format Markdown untuk struktur yang rapi (bold, list, code block).
+      - Jika User meminta MEMBUAT/GENERATE gambar saat ini (di dalam percakapan teks ini), jelaskan bahwa mereka perlu mengganti mode ke 'Buat Gambar' menggunakan tombol di bagian atas layar, karena saat ini Anda sedang berada di mode Chat/Vision.
+      - Jika User mengunggah gambar, berikan analisis mendalam.
+      - Gunakan Bahasa Indonesia kecuali diminta sebaliknya.
+    `;
+
     const response = await ai.models.generateContent({
       model: modelId,
       contents: {
@@ -55,7 +62,7 @@ export const sendChatMessage = async (
         parts: parts
       },
       config: {
-          systemInstruction: "You are a helpful AI assistant capable of analyzing images and files. Answer in Indonesian if the user speaks Indonesian.",
+          systemInstruction: systemInstruction.trim(),
       }
     });
 
