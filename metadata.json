@@ -1,0 +1,8 @@
+{
+  "name": "Gemini Omni-Chat",
+  "description": "A comprehensive React application to chat with Gemini, analyze images/files, use the camera, and generate AI images in a single interface.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
